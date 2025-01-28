@@ -1,0 +1,29 @@
+{
+  "name": "rabbit-mq",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "publisher": "ts-node src/publisher.ts",
+    "consumer1": "ts-node src/start-consumer-1.ts",
+    "consumer2": "ts-node src/start-consumer-2.ts",
+    "test": "ts-node src/test.ts",
+    "testshopee" : "ts-node src/test_shopee.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "description": "",
+  "devDependencies": {
+    "@types/node": "^22.10.7",
+    "nodemon": "^3.1.9",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "@types/amqplib": "^0.10.6",
+    "amqplib": "^0.10.5",
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7"
+  }
+}
