@@ -5,6 +5,7 @@ import { Order } from "./types";
 
 class OrderPublisher {
   private channel: amqp.ConfirmChannel | null = null;
+  private counter_unconfirmed: number = 0;
 
   async connect() {
     try {
@@ -58,8 +59,9 @@ class OrderPublisher {
       const promises = orders.map((order) =>
         this.channel!.publish(config.exchange, config.queue, Buffer.from(JSON.stringify(order)), { persistent: true }, (err, ok) => {
           if (err || !ok) {
+            this.counter_unconfirmed++;
             // Jika terjadi error, simpan pesan yang gagal dikirim
-            this.writeMessageToLog(JSON.stringify(order));
+            this.writeMessageToLog(this.counter_unconfirmed.toString());
           }
         })
       );
