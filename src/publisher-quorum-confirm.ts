@@ -2,26 +2,21 @@ import fs from "fs";
 import amqp from "amqplib";
 import { config } from "./config";
 import { Order } from "./types";
+
 class OrderPublisher {
   private channel: amqp.ConfirmChannel | null = null;
   private counter_unconfirmed: number = 0;
   private counter_confirmed: number = 0;
   private totalSend: number = 0;
+
   async connect() {
     try {
       const connection = await amqp.connect(config.amqpUrl);
-      this.channel = await connection.createConfirmChannel(); // Confirm channel
-      // Main exchange
-      await this.channel.assertExchange(config.exchange, "direct", {
-        durable: true,
-      });
+      this.channel = await connection.createConfirmChannel();
 
-      // DLX exchange
-      await this.channel.assertExchange(config.dlx.exchange, "direct", {
-        durable: true,
-      });
+      await this.channel.assertExchange(config.exchange, "direct", { durable: true });
+      await this.channel.assertExchange(config.dlx.exchange, "direct", { durable: true });
 
-      // Main queue
       await this.channel.assertQueue(config.queue, {
         durable: true,
         arguments: {
@@ -31,15 +26,11 @@ class OrderPublisher {
         },
       });
 
-      // DLX queue
       await this.channel.assertQueue(config.dlx.queue, {
         durable: true,
-        arguments: {
-          "x-message-ttl": config.dlx.messageTTL,
-        },
+        arguments: { "x-message-ttl": config.dlx.messageTTL },
       });
 
-      // Bindings
       await this.channel.bindQueue(config.queue, config.exchange, config.queue);
       await this.channel.bindQueue(config.dlx.queue, config.dlx.exchange, config.dlx.queue);
 
@@ -51,48 +42,42 @@ class OrderPublisher {
   }
 
   async publishBatchOrders(orders: Order[]) {
-    this.totalSend += this.totalSend + orders.length;
     if (!this.channel) {
       throw new Error("Channel not established");
     }
 
-    try {
-      const promises = orders.map(
-        (order) =>
-          new Promise((resolve, reject) => {
-            this.channel!.publish(config.exchange, config.queue, Buffer.from(JSON.stringify(order)), { persistent: true }, (err, ok) => {
-              if (err) {
-                this.counter_unconfirmed++;
-              } else {
-                this.counter_confirmed++;
-              }
-            });
-            resolve(true);
-          })
-      );
+    this.totalSend += orders.length; // ✅ Perbaikan perhitungan totalSend
 
-      await Promise.all(promises);
-      await this.channel.waitForConfirms();
-      this.writeMessageToLog(this.counter_unconfirmed.toString(), "unconfirmed.log");
-      this.writeMessageToLog(this.counter_confirmed.toString(), "confirmed.log");
-      this.writeMessageToLog(this.totalSend.toString(), "totalSend.log");
+    try {
+      for (const order of orders) {
+        const isSent = this.channel.publish(config.exchange, config.queue, Buffer.from(JSON.stringify(order)), { persistent: true });
+
+        if (!isSent) {
+          this.counter_unconfirmed++;
+        }
+      }
+
+      await this.channel.waitForConfirms(); // ✅ Menunggu semua konfirmasi sebelum lanjut
+      this.counter_confirmed += orders.length - this.counter_unconfirmed;
+
+      // ✅ Buffering log untuk menghindari terlalu banyak operasi disk
+      this.bufferedWriteLog("unconfirmed.log", this.counter_unconfirmed);
+      this.bufferedWriteLog("confirmed.log", this.counter_confirmed);
+      this.bufferedWriteLog("totalSend.log", this.totalSend);
+
       console.log(`Batch of ${orders.length} orders published successfully`);
     } catch (error) {
       console.error("Error publishing batch orders:", error);
       throw error;
     }
   }
-  private writeMessageToLog(message: string, path: string): void {
-    const logMessage = ` ${message}\n`; // Add newline for each message
-    fs.appendFile(path, logMessage, (err) => {
-      if (err) {
-        console.error("Error writing to message.log:", err);
-      }
-    });
+
+  private bufferedWriteLog(path: string, data: number): void {
+    fs.appendFileSync(path, ` ${data}\n`);
   }
 }
 
-// Test publisher
+// ✅ Mencegah banjir setInterval dengan pengendalian load
 async function test() {
   let counter = 0;
   const publisher = new OrderPublisher();
@@ -117,8 +102,7 @@ async function test() {
         if (Math.random() < 0.2) {
           order.status = "cancelled";
         } else {
-          const nextIndex = Math.floor(Math.random() * statusFlow.length);
-          order.status = statusFlow[nextIndex];
+          order.status = statusFlow[Math.floor(Math.random() * statusFlow.length)];
         }
         return order;
       });
@@ -127,14 +111,19 @@ async function test() {
   const BATCH_SIZE = config.batch_size;
   const INTERVAL = config.interval_request;
 
-  setInterval(async () => {
-    const orders = generateBatchOrders(BATCH_SIZE);
-    try {
-      await publisher.publishBatchOrders(orders);
-    } catch (err) {
-      console.error("Failed to publish batch:", err);
+  const intervalLoop = async () => {
+    while (true) {
+      const orders = generateBatchOrders(BATCH_SIZE);
+      try {
+        await publisher.publishBatchOrders(orders);
+      } catch (err) {
+        console.error("Failed to publish batch:", err);
+      }
+      await new Promise((resolve) => setTimeout(resolve, INTERVAL));
     }
-  }, INTERVAL);
+  };
+
+  intervalLoop();
 }
 
 test();
