@@ -10,13 +10,6 @@ class OrderPublisher {
     try {
       const connection = await amqp.connect(config.amqpUrl);
       this.channel = await connection.createConfirmChannel(); // Confirm channel
-
-      this.channel.on("ack", () => {
-        this.counter_confirmed++;
-      });
-      this.channel.on("nack", () => {
-        this.counter_unconfirmed++;
-      });
       // Main exchange
       await this.channel.assertExchange(config.exchange, "direct", {
         durable: true,
@@ -62,20 +55,24 @@ class OrderPublisher {
     }
 
     try {
-      orders.forEach((order) => {
-        this.channel!.publish(config.exchange, config.queue, Buffer.from(JSON.stringify(order)), { persistent: true }, (err, ok) => {
-          if (err) {
-            this.counter_unconfirmed++;
-          } else {
-            this.counter_confirmed++;
-          }
-        });
-      });
+      const promises = orders.map(
+        (order) =>
+          new Promise((resolve, reject) => {
+            this.channel!.publish(config.exchange, config.queue, Buffer.from(JSON.stringify(order)), { persistent: true }, (err, ok) => {
+              if (err) {
+                this.counter_unconfirmed++;
+              } else {
+                this.counter_confirmed++;
+              }
+            });
+            resolve(true);
+          })
+      );
 
+      await Promise.all(promises);
       await this.channel.waitForConfirms();
       this.writeMessageToLog(this.counter_unconfirmed.toString(), "unconfirmed.log");
       this.writeMessageToLog(this.counter_confirmed.toString(), "confirmed.log");
-      this.writeMessageToLog(orders.length.toString(), "totalSend.log");
       console.log(`Batch of ${orders.length} orders published successfully`);
     } catch (error) {
       console.error("Error publishing batch orders:", error);
@@ -129,7 +126,6 @@ async function test() {
 
   setInterval(async () => {
     const orders = generateBatchOrders(BATCH_SIZE);
-    console.log(orders.length);
     try {
       await publisher.publishBatchOrders(orders);
     } catch (err) {
