@@ -2,11 +2,10 @@ import fs from "fs";
 import amqp from "amqplib";
 import { config } from "./config";
 import { Order } from "./types";
-
 class OrderPublisher {
   private channel: amqp.ConfirmChannel | null = null;
   private counter_unconfirmed: number = 0;
-
+  private counter_confirmed: number = 0;
   async connect() {
     try {
       const connection = await amqp.connect(config.amqpUrl);
@@ -56,27 +55,33 @@ class OrderPublisher {
     }
 
     try {
-      const promises = orders.map((order) =>
-        this.channel!.publish(config.exchange, config.queue, Buffer.from(JSON.stringify(order)), { persistent: true }, (err, ok) => {
-          if (err || !ok) {
-            this.counter_unconfirmed++;
-            // Jika terjadi error, simpan pesan yang gagal dikirim
-            this.writeMessageToLog(this.counter_unconfirmed.toString());
-          }
-        })
+      const promises = orders.map(
+        (order) =>
+          new Promise((resolve, reject) => {
+            this.channel!.publish(config.exchange, config.queue, Buffer.from(JSON.stringify(order)), { persistent: true }, (err, ok) => {
+              if (err) {
+                this.counter_unconfirmed++;
+              } else {
+                this.counter_confirmed++;
+              }
+            });
+            resolve(true);
+          })
       );
 
       await Promise.all(promises);
       await this.channel.waitForConfirms();
+      this.writeMessageToLog(this.counter_unconfirmed.toString(), "unconfirmed.log");
+      this.writeMessageToLog(this.counter_confirmed.toString(), "confirmed.log");
       console.log(`Batch of ${orders.length} orders published successfully`);
     } catch (error) {
       console.error("Error publishing batch orders:", error);
       throw error;
     }
   }
-  private writeMessageToLog(message: string): void {
+  private writeMessageToLog(message: string, path: string): void {
     const logMessage = `unconfirmed ${message}\n`; // Add newline for each message
-    fs.appendFile("unconfirmed.log", logMessage, (err) => {
+    fs.appendFile(path, logMessage, (err) => {
       if (err) {
         console.error("Error writing to message.log:", err);
       }
