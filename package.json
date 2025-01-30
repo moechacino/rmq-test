@@ -7,7 +7,7 @@
     "consumer1": "ts-node src/start-consumer-1.ts",
     "consumer2": "ts-node src/start-consumer-2.ts",
     "test": "ts-node src/test.ts",
-    "testshopee" : "ts-node src/test_shopee.ts"
+    "testshopee": "ts-node src/test_shopee.ts"
   },
   "keywords": [],
   "author": "",
