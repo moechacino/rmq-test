@@ -6,6 +6,7 @@ class OrderPublisher {
   private channel: amqp.ConfirmChannel | null = null;
   private counter_unconfirmed: number = 0;
   private counter_confirmed: number = 0;
+  private totalSend: number = 0;
   async connect() {
     try {
       const connection = await amqp.connect(config.amqpUrl);
@@ -50,6 +51,7 @@ class OrderPublisher {
   }
 
   async publishBatchOrders(orders: Order[]) {
+    this.totalSend += this.totalSend + orders.length;
     if (!this.channel) {
       throw new Error("Channel not established");
     }
@@ -73,6 +75,7 @@ class OrderPublisher {
       await this.channel.waitForConfirms();
       this.writeMessageToLog(this.counter_unconfirmed.toString(), "unconfirmed.log");
       this.writeMessageToLog(this.counter_confirmed.toString(), "confirmed.log");
+      this.writeMessageToLog(this.totalSend.toString(), "totalSend.log");
       console.log(`Batch of ${orders.length} orders published successfully`);
     } catch (error) {
       console.error("Error publishing batch orders:", error);
