@@ -16,54 +16,11 @@ class OrderConsumerLog {
       this.channel = await this.connection.createChannel();
       await this.channel.prefetch(1);
 
-      // Setup queues and exchanges
-      // await this.setupQueues();
-
-      // Start consuming messages
       this.consume();
     } catch (error) {
       console.error(`Consumer ${this.consumerId} connection error:`, error);
       setTimeout(() => this.connect(), 5000); // Retry connection after 5 seconds
     }
-  }
-
-  private async setupQueues() {
-    if (!this.channel) {
-      throw new Error("Channel not established");
-    }
-
-    // Main exchange
-    await this.channel.assertExchange(config.exchange, "direct", {
-      durable: true,
-    });
-
-    // DLX exchange
-    await this.channel.assertExchange(config.dlx.exchange, "direct", {
-      durable: true,
-    });
-
-    // Main queue
-    await this.channel.assertQueue(config.queue, {
-      durable: true,
-      arguments: {
-        "x-dead-letter-exchange": config.dlx.exchange,
-        "x-dead-letter-routing-key": config.dlx.queue,
-      },
-    });
-
-    // DLX queue
-    await this.channel.assertQueue(config.dlx.queue, {
-      durable: true,
-      arguments: {
-        "x-message-ttl": config.dlx.messageTTL,
-      },
-    });
-
-    // Bindings
-    await this.channel.bindQueue(config.queue, config.exchange, config.queue);
-    await this.channel.bindQueue(config.dlx.queue, config.dlx.exchange, config.dlx.queue);
-
-    console.log("Queues and exchanges are set up with DLX");
   }
 
   private async consume() {
@@ -97,27 +54,10 @@ class OrderConsumerLog {
     }
   }
 
-  private async processOrder(order: Order): Promise<void> {
-    // Simulate processing logic
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (Math.random() < 0.3) {
-          reject(new Error("Simulated processing error"));
-        } else {
-          resolve();
-        }
-      }, 1000);
-    });
-  }
-
   // Helper function to write message to log file
   private writeMessageToLog(message: string): void {
     const logMessage = `order ${message}\n`; // Add newline for each message
-    fs.appendFile("message.log", logMessage, (err) => {
-      if (err) {
-        console.error("Error writing to message.log:", err);
-      }
-    });
+    fs.appendFileSync("message.log", logMessage);
   }
 }
 
