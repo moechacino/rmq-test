@@ -1,5 +1,5 @@
 node_modules
 message.log
-unconfirmed.log
-confirmed.log
-totalSend.log
+unconfirmed*
+confirmed*
+totalSend*

@@ -3,7 +3,8 @@ import amqp from "amqplib";
 import { config } from "./config";
 import { Order } from "./types";
 
-class OrderPublisher {
+export class OrderPublisherQuorum {
+  constructor(private id: string) {}
   private channel: amqp.ConfirmChannel | null = null;
   private counter_unconfirmed: number = 0;
   private counter_confirmed: number = 0;
@@ -61,9 +62,9 @@ class OrderPublisher {
       this.counter_confirmed += orders.length - this.counter_unconfirmed;
 
       // ✅ Buffering log untuk menghindari terlalu banyak operasi disk
-      this.bufferedWriteLog("unconfirmed.log", this.counter_unconfirmed);
-      this.bufferedWriteLog("confirmed.log", this.counter_confirmed);
-      this.bufferedWriteLog("totalSend.log", this.totalSend);
+      this.bufferedWriteLog(`unconfirmed${this.id}.log`, this.counter_unconfirmed);
+      this.bufferedWriteLog(`confirmed${this.id}.log`, this.counter_confirmed);
+      this.bufferedWriteLog(`totalSend${this.id}.log`, this.totalSend);
 
       console.log(`Batch of ${orders.length} orders published successfully`);
     } catch (error) {
@@ -77,10 +78,9 @@ class OrderPublisher {
   }
 }
 
-// ✅ Mencegah banjir setInterval dengan pengendalian load
-async function test() {
+export async function runPub(id: string) {
   let counter = 0;
-  const publisher = new OrderPublisher();
+  const publisher = new OrderPublisherQuorum(id);
   await publisher.connect();
 
   const statusFlow: Order["status"][] = ["unpaid", "new-order", "ready-to-ship", "shipping", "completed"];
@@ -125,5 +125,3 @@ async function test() {
 
   intervalLoop();
 }
-
-test();
