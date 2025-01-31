@@ -81,5 +81,5 @@ export async function runShopeePub(id: string) {
     }
   };
 
-  intervalLoop();
+  await intervalLoop();
 }

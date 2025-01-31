@@ -80,5 +80,5 @@ export async function runTokopediaPub(id: string) {
     }
   };
 
-  intervalLoop();
+  await intervalLoop();
 }
