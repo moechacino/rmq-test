@@ -22,7 +22,7 @@ export class ShopeeProducer {
           "x-queue-type": "quorum",
         },
       });
-      this.channel.bindQueue(queue, this.exchange, queue);
+      await this.channel.bindQueue(queue, this.exchange, queue);
     }
   }
 
