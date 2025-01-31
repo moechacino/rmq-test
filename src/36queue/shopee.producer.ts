@@ -54,6 +54,7 @@ export class ShopeeProducer {
     const messages = Array.from({ length: totalOrder }, (_, index) => `Pesan ke-${index + 1}`);
     const batchSize = totalOrder / 12;
     const batches = Array.from({ length: 12 }, (_, index) => messages.slice(index * batchSize, (index + 1) * batchSize));
+    console.dir(batches, { depth: Infinity });
     return batches;
   }
 

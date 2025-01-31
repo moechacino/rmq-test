@@ -2,9 +2,9 @@ import amqp from "amqplib";
 import fs from "fs";
 import { config } from "../config";
 
-export class ShopeeConsumer {
+export class LazadaConsumer {
   constructor(private consumerId: string) {}
-  private queues = config.marketplace.shopee.queues;
+  private queues = config.marketplace.lazada.queues;
   private channel: amqp.Channel | null = null;
 
   async connect() {
@@ -30,7 +30,7 @@ export class ShopeeConsumer {
               this.channel?.ack(msg);
 
               // Write the message to log file
-              this.writeMessageToLog(`s_msg_${this.consumerId}.log`, `${queue}_${msg.content.toString()}`);
+              this.writeMessageToLog(`l_msg_${this.consumerId}.log`, `${queue}_${msg.content.toString()}`);
               resolve();
             } catch (error) {
               // Reject the message if error occurs, do not requeue
@@ -56,8 +56,8 @@ export class ShopeeConsumer {
   }
 }
 
-export async function runShopeeConsumer(id: string) {
-  const consumer = new ShopeeConsumer(id);
+export async function runLazadaConsumer(id: string) {
+  const consumer = new LazadaConsumer(id);
   await consumer.connect();
   await consumer.consume();
 }
