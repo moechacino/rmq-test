@@ -14,7 +14,7 @@ class OrderConsumerLog {
       console.log(`Consumer ${this.consumerId} connecting...`);
       this.connection = await amqp.connect(config.amqpUrl);
       this.channel = await this.connection.createChannel();
-      await this.channel.prefetch(1);
+      await this.channel.prefetch(100);
 
       this.consume();
     } catch (error) {
@@ -57,7 +57,7 @@ class OrderConsumerLog {
   // Helper function to write message to log file
   private writeMessageToLog(message: string): void {
     const logMessage = `order ${message}\n`; // Add newline for each message
-    fs.appendFileSync("message.log", logMessage);
+    fs.appendFileSync(`msg_${this.consumerId}.log`, logMessage);
   }
 }
 
