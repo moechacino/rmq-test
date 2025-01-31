@@ -11,6 +11,7 @@ export class TokopediaConsumer {
     try {
       const connection = await amqp.connect(config.amqpUrl);
       this.channel = await connection.createChannel();
+      await this.channel.prefetch(1);
     } catch (error) {
       console.log("can not connect");
       setTimeout(() => this.connect(), 5000);
