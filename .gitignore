@@ -1,3 +1,4 @@
+.env
 node_modules
 message.log
 unconfirmed*
@@ -6,3 +7,5 @@ totalSend*
 s_*
 t_*
 l_*
+
+failing*
