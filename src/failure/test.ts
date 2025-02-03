@@ -41,19 +41,13 @@ class FailingProducer {
     const promises = batch.map(
       (data) =>
         new Promise<void>((resolve, reject) => {
-          this.channel!.publish(
-            config.exchange,
-            config.queue,
-            Buffer.from(JSON.stringify(data)),
-            { persistent: true },
-            (err, ok) => {
-              if (err) {
-                this.counter_unconfirmed++;
-              } else {
-                this.counter_confirmed++;
-              }
+          this.channel!.publish(this.exchange, this.queue, Buffer.from(JSON.stringify(data)), { persistent: true }, (err, ok) => {
+            if (err) {
+              this.counter_unconfirmed++;
+            } else {
+              this.counter_confirmed++;
             }
-          );
+          });
           resolve();
         })
     );
@@ -61,17 +55,12 @@ class FailingProducer {
     await Promise.all(promises);
     await this.channel!.waitForConfirms();
 
-    if (this.counter_unconfirmed !== 0)
-      this.bufferedWriteLog(
-        `failing_unconfirmed.log`,
-        this.counter_unconfirmed
-      );
+    if (this.counter_unconfirmed !== 0) this.bufferedWriteLog(`failing_unconfirmed.log`, this.counter_unconfirmed);
 
     this.bufferedWriteLog(`failing_confirmed.log`, this.counter_confirmed);
     this.bufferedWriteLog("failing_total.log", this.counter);
 
-    if (this.counter_blocked !== 0)
-      this.bufferedWriteLog("failing_blocked.log", this.counter_blocked);
+    if (this.counter_blocked !== 0) this.bufferedWriteLog("failing_blocked.log", this.counter_blocked);
     console.log(`pesan ke-${this.counter} published`);
   }
 
@@ -98,8 +87,9 @@ async function main(id: string) {
   await producer.connect();
 
   for (let i = 0; i < 100; i++) {
-    const batch = producer.generateBatchOrders(1000);
+    const batch = producer.generateBatchOrders(10);
     await producer.publish(batch);
+    await delay(1000);
   }
 }
 
