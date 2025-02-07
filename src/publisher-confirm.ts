@@ -35,7 +35,6 @@ class OrderPublisher {
           "x-dead-letter-routing-key": config.dlx.queue,
         },
       });
-
       // DLX queue
       await this.channel.assertQueue(config.dlx.queue, {
         durable: true,
